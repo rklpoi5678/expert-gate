@@ -16,6 +16,49 @@ async function fakeClaudeDirectory(): Promise<string> {
   return directory;
 }
 
+async function fakeCodexDirectory(): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), "expert-gate-codex-test-"));
+  const fakeCodex = join(directory, "codex");
+  await writeFile(fakeCodex, '#!/bin/sh\nprintf "%s\\n" "$@"\n');
+  await chmod(fakeCodex, 0o755);
+  return directory;
+}
+
+test("isolates the expert Codex process from host plugins and skills", async () => {
+  const directory = await fakeCodexDirectory();
+  try {
+    const result = spawnSync(
+      join(process.cwd(), "bin", "codex-expert"),
+      ["exec", "--experimental-json", "--model", "configured-model"],
+      {
+        encoding: "utf8",
+        env: { PATH: `${directory}${delimiter}${process.env.PATH ?? ""}` },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.stdout.trim().split("\n"), [
+      "exec",
+      "--ignore-user-config",
+      "--ephemeral",
+      "--disable",
+      "plugins",
+      "--disable",
+      "hooks",
+      "--disable",
+      "apps",
+      "--disable",
+      "multi_agent",
+      "--enable",
+      "skip_host_skill_discovery",
+      "--experimental-json",
+      "--model",
+      "configured-model",
+    ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("configures the official Anthropic endpoint only when a DeepSeek key is supplied", async () => {
   const directory = await fakeClaudeDirectory();
   try {

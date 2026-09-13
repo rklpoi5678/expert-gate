@@ -1,9 +1,11 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { Codex } from "@openai/codex-sdk";
 import type {
+  CodexOptions,
   ThreadOptions,
   TurnOptions,
   Usage as SdkUsage,
@@ -27,7 +29,15 @@ type CodexLike = {
     run(input: string, options?: TurnOptions): Promise<CodexTurn>;
   };
 };
-type CodexFactory = () => CodexLike;
+type CodexFactory = (options: CodexOptions) => CodexLike;
+
+const expertCodexPath = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "bin",
+  "codex-expert",
+);
 
 function usageFromSdk(usage: SdkUsage | null): Usage {
   return usage
@@ -42,12 +52,12 @@ function usageFromSdk(usage: SdkUsage | null): Usage {
 export async function consultExpert(
   request: ExpertRequest,
   config: RuntimeConfig,
-  createCodex: CodexFactory = () => new Codex(),
+  createCodex: CodexFactory = (options) => new Codex(options),
 ): Promise<{ expert: ExpertResponse; usage: Usage }> {
   const workingDirectory = await mkdtemp(join(tmpdir(), "expert-gate-consultant-"));
 
   try {
-    const thread = createCodex().startThread({
+    const thread = createCodex({ codexPathOverride: expertCodexPath }).startThread({
       model: config.model,
       modelReasoningEffort: config.reasoning,
       workingDirectory,

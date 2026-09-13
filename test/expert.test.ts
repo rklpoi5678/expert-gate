@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { access } from "node:fs/promises";
 import test from "node:test";
 
-import type { ThreadOptions, TurnOptions, Usage as SdkUsage } from "@openai/codex-sdk";
+import type {
+  CodexOptions,
+  ThreadOptions,
+  TurnOptions,
+  Usage as SdkUsage,
+} from "@openai/codex-sdk";
 
 import { consultExpert } from "../src/expert.js";
 import { buildConsultantPrompt } from "../src/prompt.js";
@@ -48,10 +53,12 @@ test("labels every Decision Packet field as untrusted data", () => {
 });
 
 test("runs Codex with isolated read-only options and validates structured output", async () => {
+  let codexOptions: CodexOptions | undefined;
   let threadOptions: ThreadOptions | undefined;
   let turnOptions: TurnOptions | undefined;
-  const result = await consultExpert(syntheticAuthRequest, config, () =>
-    fakeCodex(
+  const result = await consultExpert(syntheticAuthRequest, config, (options) => {
+    codexOptions = options;
+    return fakeCodex(
       async (_prompt, options) => {
         turnOptions = options;
         return {
@@ -68,9 +75,10 @@ test("runs Codex with isolated read-only options and validates structured output
       (options) => {
         threadOptions = options;
       },
-    ),
-  );
+    );
+  });
 
+  assert.match(codexOptions?.codexPathOverride ?? "", /\/bin\/codex-expert$/);
   assert.ok(threadOptions?.workingDirectory);
   assert.deepEqual(threadOptions, {
     model: "configured-model",

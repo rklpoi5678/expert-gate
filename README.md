@@ -168,6 +168,9 @@ stderr.
 
 - Codex runs in a fresh empty temporary directory with `sandboxMode: read-only`,
   `approvalPolicy: never`, network disabled, and web search disabled.
+- Consultant subprocesses ignore user configuration, run ephemerally, and
+  disable host plugins, hooks, apps, multi-agent support, and host skill
+  discovery. Global Claude/Codex plugins remain installed for normal sessions.
 - The Decision Packet rejects absolute and parent-traversal paths.
 - The consultant prompt treats all packet content as untrusted data and forbids
   implementation or repository exploration.
